@@ -9,7 +9,7 @@ extern "C" {
 #include <iostream>
 #include <sstream>
 
-const enum AVPixelFormat DST_FORMAT = PIX_FMT_RGB32;
+const enum AVPixelFormat DST_FORMAT = PIX_FMT_BGR32;
 
 void encodeOneStep(const char* filename, const unsigned char* image, unsigned width, unsigned height)
 {
@@ -97,7 +97,7 @@ int main(int argc, char* args[])
     int frame_finished;
     AVPacket packet;
 
-    for (int i = 0; av_read_frame(format_context, &packet) >= 0; i++)
+    for (int i = 0; av_read_frame(format_context, &packet) >= 0;)
     {
         // is packet from video?
         if (packet.stream_index == video_stream)
@@ -105,6 +105,8 @@ int main(int argc, char* args[])
             // decode video frame
             avcodec_decode_video2(codec_context, frame, &frame_finished, &packet);
 
+            if (frame_finished)
+            {
                 sws_scale(
                     sws_context, frame->data, frame->linesize,
                     0, codec_context->height,
@@ -112,14 +114,17 @@ int main(int argc, char* args[])
                     );
 
                 // Save frame
-                std::cerr << "Saving frame " << i << std::endl;
-                std::stringstream ss;
-                ss << "test_";
-                ss << i;
-                ss << ".png";
-                std::string str = ss.str();
-                encodeOneStep(str.c_str(), buffer, codec_context->width, codec_context->height);
-
+                if (++i > 0)
+                {
+                    std::cerr << "Saving frame " << i << std::endl;
+                    std::stringstream ss;
+                    ss << "test_";
+                    ss << i;;
+                    ss << ".png";
+                    std::string str = ss.str();
+                    encodeOneStep(str.c_str(), buffer, codec_context->width, codec_context->height);
+                }
+            }
         }
 
         av_free_packet(&packet);
